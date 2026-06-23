@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Linq;
-using Jellyfin.Database.Implementations.Entities;
+using Jellyfin.Data.Entities;
 using Trakt.Model;
 
 namespace Trakt.Helpers;

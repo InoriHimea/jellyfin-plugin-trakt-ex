@@ -6,9 +6,8 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Data.Entities;
 using Jellyfin.Data.Enums;
-using Jellyfin.Database.Implementations.Entities;
-using Jellyfin.Database.Implementations.Enums;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
@@ -79,7 +78,7 @@ public class SyncFromTraktTask : IScheduledTask
     /// <inheritdoc />
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {
-        var users = _userManager.GetUsers().Where(user => UserHelper.GetTraktUser(user, true) != null).ToList();
+        var users = _userManager.Users.Where(user => UserHelper.GetTraktUser(user, true) != null).ToList();
 
         // No point going further if we don't have users.
         if (users.Count == 0)

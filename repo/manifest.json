@@ -1,0 +1,20 @@
+[
+  {
+    "category": "General",
+    "guid": "4fe3201e-d6ae-4f2e-8917-e12bda571281",
+    "name": "Trakt",
+    "description": "Record your watched media with Trakt.",
+    "overview": "Record your watched media with Trakt",
+    "owner": "jellyfin",
+    "versions": [
+      {
+        "version": "30.0.0.0",
+        "changelog": "Backport of v30 for Jellyfin 10.10 compatibility.\n- Fix PCM audio handling\n- Enhance channel layouts mapping\n- Fix Trakt 3D metadata null value parsing\n- Revamp Trakt settings UI",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "__PLACEHOLDER_UPDATED_BY_CI__",
+        "checksum": "__PLACEHOLDER_UPDATED_BY_CI__",
+        "timestamp": "2026-06-24T00:00:00Z"
+      }
+    ]
+  }
+]
