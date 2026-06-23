@@ -1,4 +1,4 @@
-name: '📦 Publish Plugin (Jellyfin 10.10 Compat)'
+name: Publish Plugin (Jellyfin 10.10 Compat)
 
 on:
   push:
@@ -14,100 +14,99 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - uses: actions/setup-dotnet@v4
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore dependencies
+      - name: Restore
         run: dotnet restore Trakt/Trakt.csproj
 
       - name: Build
         run: dotnet publish Trakt/Trakt.csproj -c Release -o dist/
 
-      - name: Package plugin
+      - name: Package
         run: |
           cd dist
           zip trakt_30.0.0.0.zip Trakt.dll
-          MD5=$(md5sum trakt_30.0.0.0.zip | awk '{print $1}')
-          echo "PLUGIN_MD5=$MD5" >> $GITHUB_ENV
-          echo "PLUGIN_FILE=dist/trakt_30.0.0.0.zip" >> $GITHUB_ENV
+          echo "PLUGIN_MD5=$(md5sum trakt_30.0.0.0.zip | awk '{print $1}')" >> "$GITHUB_ENV"
 
-      - name: Determine release tag
+      - name: Set release tag
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "RELEASE_TAG=${{ github.event.inputs.tag }}" >> $GITHUB_ENV
+            echo "RELEASE_TAG=${{ github.event.inputs.tag }}" >> "$GITHUB_ENV"
           else
-            echo "RELEASE_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+            echo "RELEASE_TAG=${{ github.ref_name }}" >> "$GITHUB_ENV"
           fi
 
       - name: Generate manifest.json
         run: |
+          SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/trakt_30.0.0.0.zip"
           TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/trakt_30.0.0.0.zip"
-          cat > repo/manifest.json << EOF
-          [
-            {
+          jq -n \
+            --arg sourceUrl "$SOURCE_URL" \
+            --arg checksum "$PLUGIN_MD5" \
+            --arg timestamp "$TIMESTAMP" \
+            '[{
               "category": "General",
               "guid": "4fe3201e-d6ae-4f2e-8917-e12bda571281",
               "name": "Trakt",
               "description": "Record your watched media with Trakt.",
               "overview": "Record your watched media with Trakt",
               "owner": "jellyfin",
-              "versions": [
-                {
-                  "version": "30.0.0.0",
-                  "changelog": "Backport of v30 for Jellyfin 10.10 compatibility.\n- Fix MissingMethodException (use Users instead of GetUsers())\n- Fix PCM audio handling\n- Enhance channel layouts mapping\n- Fix Trakt 3D metadata null value parsing\n- Revamp Trakt settings UI",
-                  "targetAbi": "10.10.0.0",
-                  "sourceUrl": "$SOURCE_URL",
-                  "checksum": "${{ env.PLUGIN_MD5 }}",
-                  "timestamp": "$TIMESTAMP"
-                }
-              ]
-            }
-          ]
-          EOF
+              "versions": [{
+                "version": "30.0.0.0",
+                "changelog": "Backport of v30 for Jellyfin 10.10 compatibility.",
+                "targetAbi": "10.10.0.0",
+                "sourceUrl": $sourceUrl,
+                "checksum": $checksum,
+                "timestamp": $timestamp
+              }]
+            }]' > repo/manifest.json
+          echo "Generated manifest.json:"
+          cat repo/manifest.json
 
       - name: Commit manifest.json
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add repo/manifest.json
-          git diff --staged --quiet || git commit -m "Update manifest.json for ${{ env.RELEASE_TAG }}"
+          git diff --staged --quiet || git commit -m "ci: update manifest.json for ${RELEASE_TAG}"
           git push origin HEAD:master || true
 
-      - name: Create GitHub Release
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          name: "Trakt v30 (Jellyfin 10.10 Compat)"
+          name: Trakt v30 (Jellyfin 10.10 Compat)
           body: |
             ## Trakt v30 — Jellyfin 10.10 Compatible
 
-            This is a backport of the official v30 release with compatibility patches for Jellyfin **10.10**.
+            Backport of the official v30 release for Jellyfin **10.10**.
 
-            ### Changes from upstream v30
-            - Reverted `Jellyfin.Database.Implementations` namespaces → `Jellyfin.Data` (10.10 API)
-            - Reverted `GetUsers()` → `Users` property (10.10 IUserManager API)
+            **Changes from upstream v30**
+            - Reverted `Jellyfin.Database.Implementations` namespaces to `Jellyfin.Data`
+            - Reverted `GetUsers()` to `Users` property (10.10 `IUserManager` API)
             - Targets `net8.0` / `targetAbi 10.10.0.0`
 
-            ### All v27–v30 features included
+            **All v27–v30 features included**
             - Fix PCM audio handling
             - Enhance channel layouts mapping
             - Fix Trakt 3D metadata null value parsing
-            - Revamp Trakt settings UI for clarity and usability
+            - Revamp Trakt settings UI
 
-            ### Plugin Repository URL
-            Add this URL in Jellyfin → Admin → Plugins → Repositories:
+            **Add to Jellyfin** — Admin → Plugins → Repositories:
             ```
             https://raw.githubusercontent.com/${{ github.repository }}/master/repo/manifest.json
             ```
