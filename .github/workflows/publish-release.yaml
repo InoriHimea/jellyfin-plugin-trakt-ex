@@ -1,16 +1,17 @@
-name: Publish Plugin (Jellyfin 10.10 Compat)
+name: Publish Plugin Release
 
 on:
   push:
     tags:
       - 'v*-compat*'
       - 'v*-10.10*'
+      - 'v*-10.11*'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v30.0.0.1-compat-10.10)'
+        description: 'Release tag (e.g. v30.0.0.1-10.11 or v30.0.0.1-compat-10.10)'
         required: true
-        default: 'v30.0.0.1-compat-10.10'
+        default: 'v30.0.0.1-10.11'
 
 permissions:
   contents: write
@@ -25,10 +26,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Read build config
+        id: buildcfg
+        run: |
+          TARGET_ABI=$(grep -oP '^targetAbi:\s*"\K[^"]+' build.yaml)
+          FRAMEWORK=$(grep -oP '^framework:\s*"\K[^"]+' build.yaml)
+          DOTNET_VERSION="${FRAMEWORK#net}.x"
+          echo "target_abi=${TARGET_ABI}" >> "$GITHUB_OUTPUT"
+          echo "framework=${FRAMEWORK}" >> "$GITHUB_OUTPUT"
+          echo "dotnet_version=${DOTNET_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Building for targetAbi=${TARGET_ABI} framework=${FRAMEWORK} dotnet=${DOTNET_VERSION}"
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: ${{ steps.buildcfg.outputs.dotnet_version }}
 
       - name: Set release tag, version and changelog
         run: |
@@ -39,12 +51,14 @@ jobs:
           fi
           RAW_VERSION=$(printf '%s' "$RELEASE_TAG" | sed -E 's/^v//; s/-.*$//')
           PLUGIN_VERSION=$(printf '%s' "$RAW_VERSION" | awk -F. '{printf "%d.%d.%d.%d", $1, $2, $3, $4}')
+          PLUGIN_LABEL=$(printf '%s' "$RELEASE_TAG" | sed -E 's/^v//')
           CHANGELOG=$(git tag -l --format='%(contents:subject)' "$RELEASE_TAG")
           if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="Jellyfin 10.10 compatible build ${PLUGIN_VERSION}."
+            CHANGELOG="Jellyfin plugin build ${PLUGIN_LABEL}."
           fi
           echo "RELEASE_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
           echo "PLUGIN_VERSION=${PLUGIN_VERSION}" >> "$GITHUB_ENV"
+          echo "PLUGIN_LABEL=${PLUGIN_LABEL}" >> "$GITHUB_ENV"
           echo "CHANGELOG=${CHANGELOG}" >> "$GITHUB_ENV"
 
       - name: Restore
@@ -56,35 +70,33 @@ jobs:
       - name: Package
         run: |
           cd dist
-          zip "trakt_${PLUGIN_VERSION}.zip" Trakt.dll
-          echo "PLUGIN_MD5=$(md5sum "trakt_${PLUGIN_VERSION}.zip" | awk '{print $1}')" >> "$GITHUB_ENV"
+          zip "trakt_${PLUGIN_LABEL}.zip" Trakt.dll
+          echo "PLUGIN_MD5=$(md5sum "trakt_${PLUGIN_LABEL}.zip" | awk '{print $1}')" >> "$GITHUB_ENV"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          name: Trakt ${{ env.PLUGIN_VERSION }} (Jellyfin 10.10 Compat)
+          name: Trakt ${{ env.PLUGIN_LABEL }} (targetAbi ${{ steps.buildcfg.outputs.target_abi }})
           body: |
-            ## Trakt ${{ env.PLUGIN_VERSION }} - Jellyfin 10.10 Compatible
+            ## Trakt ${{ env.PLUGIN_VERSION }} - targetAbi ${{ steps.buildcfg.outputs.target_abi }}
 
             ${{ env.CHANGELOG }}
 
-            Based on upstream v30 with 10.10 compatibility changes:
-            - Reverted Jellyfin.Database.Implementations namespaces to Jellyfin.Data
-            - Reverted GetUsers() to Users property (10.10 IUserManager API)
-            - Targets net8.0 / targetAbi 10.10.0.0
+            Built with ${{ steps.buildcfg.outputs.framework }} for Jellyfin ABI ${{ steps.buildcfg.outputs.target_abi }}.
 
             Add to Jellyfin - Admin, Plugins, Repositories:
             https://raw.githubusercontent.com/${{ github.repository }}/master/repo/manifest.json
-          files: dist/trakt_${{ env.PLUGIN_VERSION }}.zip
-          make_latest: true
+          files: dist/trakt_${{ env.PLUGIN_LABEL }}.zip
+          make_latest: false
 
       - name: Update manifest.json on master
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout master
-          SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/trakt_${PLUGIN_VERSION}.zip"
+          TARGET_ABI="${{ steps.buildcfg.outputs.target_abi }}"
+          SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/trakt_${PLUGIN_LABEL}.zip"
           TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           mkdir -p repo
           if [ ! -f repo/manifest.json ]; then
@@ -100,6 +112,7 @@ jobs:
           fi
           jq \
             --arg version "$PLUGIN_VERSION" \
+            --arg targetAbi "$TARGET_ABI" \
             --arg changelog "$CHANGELOG" \
             --arg sourceUrl "$SOURCE_URL" \
             --arg checksum "$PLUGIN_MD5" \
@@ -107,11 +120,11 @@ jobs:
             '.[0].versions |= ([{
               "version": $version,
               "changelog": $changelog,
-              "targetAbi": "10.10.0.0",
+              "targetAbi": $targetAbi,
               "sourceUrl": $sourceUrl,
               "checksum": $checksum,
               "timestamp": $timestamp
-            }] + map(select(.version != $version)))' \
+            }] + map(select(.version != $version or .targetAbi != $targetAbi)))' \
             repo/manifest.json > repo/manifest.json.tmp
           mv repo/manifest.json.tmp repo/manifest.json
           echo "Updated manifest.json:"
