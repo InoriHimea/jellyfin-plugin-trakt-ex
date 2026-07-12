@@ -8,6 +8,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "version": "30.0.0.1",
+        "changelog": "ci: derive version from tag and publish manifest to master branch",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/InoriHimea/jellyfin-plugin-trakt-ex/releases/download/v30.0.0.1-compat-10.10/trakt_30.0.0.1.zip",
+        "checksum": "9f0d28446eea4c60af619fdce88146f4",
+        "timestamp": "2026-07-12T05:41:15Z"
+      },
+      {
         "version": "30.0.0.0",
         "changelog": "Backport of v30 for Jellyfin 10.10 compatibility.",
         "targetAbi": "10.10.0.0",
