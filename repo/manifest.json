@@ -9,6 +9,14 @@
     "versions": [
       {
         "version": "30.0.0.1",
+        "changelog": "ci: read targetAbi/framework from build.yaml instead of hardcoding 10.10",
+        "targetAbi": "10.11.9.0",
+        "sourceUrl": "https://github.com/InoriHimea/jellyfin-plugin-trakt-ex/releases/download/v30.0.0.1-10.11/trakt_30.0.0.1-10.11.zip",
+        "checksum": "5512b0686c5dfea9362033deae5de134",
+        "timestamp": "2026-07-12T10:16:31Z"
+      },
+      {
+        "version": "30.0.0.1",
         "changelog": "ci: derive version from tag and publish manifest to master branch",
         "targetAbi": "10.10.0.0",
         "sourceUrl": "https://github.com/InoriHimea/jellyfin-plugin-trakt-ex/releases/download/v30.0.0.1-compat-10.10/trakt_30.0.0.1.zip",
