@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v30-compat-10.10)'
+        description: 'Release tag (e.g. v30.0.0.1-compat-10.10)'
         required: true
-        default: 'v30-compat-10.10'
+        default: 'v30.0.0.1-compat-10.10'
 
 permissions:
   contents: write
@@ -30,6 +30,23 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
+      - name: Set release tag, version and changelog
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RELEASE_TAG="${{ github.event.inputs.tag }}"
+          else
+            RELEASE_TAG="${{ github.ref_name }}"
+          fi
+          RAW_VERSION=$(printf '%s' "$RELEASE_TAG" | sed -E 's/^v//; s/-.*$//')
+          PLUGIN_VERSION=$(printf '%s' "$RAW_VERSION" | awk -F. '{printf "%d.%d.%d.%d", $1, $2, $3, $4}')
+          CHANGELOG=$(git tag -l --format='%(contents:subject)' "$RELEASE_TAG")
+          if [ -z "$CHANGELOG" ]; then
+            CHANGELOG="Jellyfin 10.10 compatible build ${PLUGIN_VERSION}."
+          fi
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
+          echo "PLUGIN_VERSION=${PLUGIN_VERSION}" >> "$GITHUB_ENV"
+          echo "CHANGELOG=${CHANGELOG}" >> "$GITHUB_ENV"
+
       - name: Restore
         run: dotnet restore Trakt/Trakt.csproj
 
@@ -39,76 +56,66 @@ jobs:
       - name: Package
         run: |
           cd dist
-          zip trakt_30.0.0.0.zip Trakt.dll
-          echo "PLUGIN_MD5=$(md5sum trakt_30.0.0.0.zip | awk '{print $1}')" >> "$GITHUB_ENV"
+          zip "trakt_${PLUGIN_VERSION}.zip" Trakt.dll
+          echo "PLUGIN_MD5=$(md5sum "trakt_${PLUGIN_VERSION}.zip" | awk '{print $1}')" >> "$GITHUB_ENV"
 
-      - name: Set release tag
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "RELEASE_TAG=${{ github.event.inputs.tag }}" >> "$GITHUB_ENV"
-          else
-            echo "RELEASE_TAG=${{ github.ref_name }}" >> "$GITHUB_ENV"
-          fi
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Trakt ${{ env.PLUGIN_VERSION }} (Jellyfin 10.10 Compat)
+          body: |
+            ## Trakt ${{ env.PLUGIN_VERSION }} - Jellyfin 10.10 Compatible
 
-      - name: Generate manifest.json
+            ${{ env.CHANGELOG }}
+
+            Based on upstream v30 with 10.10 compatibility changes:
+            - Reverted Jellyfin.Database.Implementations namespaces to Jellyfin.Data
+            - Reverted GetUsers() to Users property (10.10 IUserManager API)
+            - Targets net8.0 / targetAbi 10.10.0.0
+
+            Add to Jellyfin - Admin, Plugins, Repositories:
+            https://raw.githubusercontent.com/${{ github.repository }}/master/repo/manifest.json
+          files: dist/trakt_${{ env.PLUGIN_VERSION }}.zip
+          make_latest: true
+
+      - name: Update manifest.json on master
         run: |
-          SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/trakt_30.0.0.0.zip"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout master
+          SOURCE_URL="https://github.com/${{ github.repository }}/releases/download/${RELEASE_TAG}/trakt_${PLUGIN_VERSION}.zip"
           TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          jq -n \
-            --arg sourceUrl "$SOURCE_URL" \
-            --arg checksum "$PLUGIN_MD5" \
-            --arg timestamp "$TIMESTAMP" \
-            '[{
+          mkdir -p repo
+          if [ ! -f repo/manifest.json ]; then
+            jq -n '[{
               "category": "General",
               "guid": "4fe3201e-d6ae-4f2e-8917-e12bda571281",
               "name": "Trakt",
               "description": "Record your watched media with Trakt.",
               "overview": "Record your watched media with Trakt",
               "owner": "jellyfin",
-              "versions": [{
-                "version": "30.0.0.0",
-                "changelog": "Backport of v30 for Jellyfin 10.10 compatibility.",
-                "targetAbi": "10.10.0.0",
-                "sourceUrl": $sourceUrl,
-                "checksum": $checksum,
-                "timestamp": $timestamp
-              }]
+              "versions": []
             }]' > repo/manifest.json
-          echo "Generated manifest.json:"
+          fi
+          jq \
+            --arg version "$PLUGIN_VERSION" \
+            --arg changelog "$CHANGELOG" \
+            --arg sourceUrl "$SOURCE_URL" \
+            --arg checksum "$PLUGIN_MD5" \
+            --arg timestamp "$TIMESTAMP" \
+            '.[0].versions |= ([{
+              "version": $version,
+              "changelog": $changelog,
+              "targetAbi": "10.10.0.0",
+              "sourceUrl": $sourceUrl,
+              "checksum": $checksum,
+              "timestamp": $timestamp
+            }] + map(select(.version != $version)))' \
+            repo/manifest.json > repo/manifest.json.tmp
+          mv repo/manifest.json.tmp repo/manifest.json
+          echo "Updated manifest.json:"
           cat repo/manifest.json
-
-      - name: Commit manifest.json
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add repo/manifest.json
           git diff --staged --quiet || git commit -m "ci: update manifest.json for ${RELEASE_TAG}"
-          git push origin HEAD:master || true
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: Trakt v30 (Jellyfin 10.10 Compat)
-          body: |
-            ## Trakt v30 — Jellyfin 10.10 Compatible
-
-            Backport of the official v30 release for Jellyfin **10.10**.
-
-            **Changes from upstream v30**
-            - Reverted `Jellyfin.Database.Implementations` namespaces to `Jellyfin.Data`
-            - Reverted `GetUsers()` to `Users` property (10.10 `IUserManager` API)
-            - Targets `net8.0` / `targetAbi 10.10.0.0`
-
-            **All v27–v30 features included**
-            - Fix PCM audio handling
-            - Enhance channel layouts mapping
-            - Fix Trakt 3D metadata null value parsing
-            - Revamp Trakt settings UI
-
-            **Add to Jellyfin** — Admin → Plugins → Repositories:
-            ```
-            https://raw.githubusercontent.com/${{ github.repository }}/master/repo/manifest.json
-            ```
-          files: dist/trakt_30.0.0.0.zip
-          make_latest: true
+          git push origin master
