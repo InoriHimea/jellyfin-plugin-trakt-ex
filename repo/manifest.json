@@ -1,0 +1,20 @@
+[
+  {
+    "category": "General",
+    "guid": "4fe3201e-d6ae-4f2e-8917-e12bda571281",
+    "name": "Trakt",
+    "description": "Record your watched media with Trakt.",
+    "overview": "Record your watched media with Trakt",
+    "owner": "jellyfin",
+    "versions": [
+      {
+        "version": "30.0.0.0",
+        "changelog": "Backport of v30 for Jellyfin 10.10 compatibility.",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/InoriHimea/jellyfin-plugin-trakt-ex/releases/download/v30-compat-10.10/trakt_30.0.0.0.zip",
+        "checksum": "94e82edd97db14054434a73aba82dd85",
+        "timestamp": "2026-06-23T18:19:31Z"
+      }
+    ]
+  }
+]
