@@ -52,7 +52,11 @@ jobs:
           RAW_VERSION=$(printf '%s' "$RELEASE_TAG" | sed -E 's/^v//; s/-.*$//')
           PLUGIN_VERSION=$(printf '%s' "$RAW_VERSION" | awk -F. '{printf "%d.%d.%d.%d", $1, $2, $3, $4}')
           PLUGIN_LABEL=$(printf '%s' "$RELEASE_TAG" | sed -E 's/^v//')
-          CHANGELOG=$(git tag -l --format='%(contents:subject)' "$RELEASE_TAG")
+          # actions/checkout resolves a tag-push event to the peeled commit SHA, so
+          # the local refs/tags/<tag> ref can end up flattened to a lightweight tag.
+          # Force-fetch the real ref so an annotated tag's message is readable below.
+          git fetch origin "+refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}" 2>/dev/null || true
+          CHANGELOG=$(git for-each-ref "refs/tags/${RELEASE_TAG}" --format='%(contents:subject)')
           if [ -z "$CHANGELOG" ]; then
             CHANGELOG="Jellyfin plugin build ${PLUGIN_LABEL}."
           fi
