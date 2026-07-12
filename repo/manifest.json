@@ -9,11 +9,11 @@
     "versions": [
       {
         "version": "30.0.0.1",
-        "changelog": "ci: read targetAbi/framework from build.yaml instead of hardcoding 10.10",
+        "changelog": "Native Jellyfin 10.11+ build: upstream v30 plus duplicate-watched-history export fix",
         "targetAbi": "10.11.9.0",
         "sourceUrl": "https://github.com/InoriHimea/jellyfin-plugin-trakt-ex/releases/download/v30.0.0.1-10.11/trakt_30.0.0.1-10.11.zip",
-        "checksum": "5512b0686c5dfea9362033deae5de134",
-        "timestamp": "2026-07-12T10:16:31Z"
+        "checksum": "bad672a9fdba020a2b7cda4e644b7d29",
+        "timestamp": "2026-07-12T10:19:31Z"
       },
       {
         "version": "30.0.0.1",
