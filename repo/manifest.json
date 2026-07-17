@@ -8,6 +8,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "version": "30.0.0.3",
+        "changelog": "Fix scrobble episode-id fallback not triggering on HTTP 422",
+        "targetAbi": "10.11.9.0",
+        "sourceUrl": "https://github.com/InoriHimea/jellyfin-plugin-trakt-ex/releases/download/v30.0.0.3-10.11/trakt_30.0.0.3-10.11.zip",
+        "checksum": "3e736e5fe5e84953f10eefb85a06bb1d",
+        "timestamp": "2026-07-17T14:03:41Z"
+      },
+      {
         "version": "30.0.0.2",
         "changelog": "Fix episode export gating, weak provider-id matching, and three crash/error-swallowing bugs",
         "targetAbi": "10.11.9.0",
