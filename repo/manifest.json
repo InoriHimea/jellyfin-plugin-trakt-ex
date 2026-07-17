@@ -10,6 +10,14 @@
       {
         "version": "30.0.0.3",
         "changelog": "Fix scrobble episode-id fallback not triggering on HTTP 422",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/InoriHimea/jellyfin-plugin-trakt-ex/releases/download/v30.0.0.3-compat-10.10/trakt_30.0.0.3-compat-10.10.zip",
+        "checksum": "018e82a9f4389d553ce229d12592c8c2",
+        "timestamp": "2026-07-17T14:05:02Z"
+      },
+      {
+        "version": "30.0.0.3",
+        "changelog": "Fix scrobble episode-id fallback not triggering on HTTP 422",
         "targetAbi": "10.11.9.0",
         "sourceUrl": "https://github.com/InoriHimea/jellyfin-plugin-trakt-ex/releases/download/v30.0.0.3-10.11/trakt_30.0.0.3-10.11.zip",
         "checksum": "3e736e5fe5e84953f10eefb85a06bb1d",
