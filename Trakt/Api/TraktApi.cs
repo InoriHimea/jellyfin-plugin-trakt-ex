@@ -226,7 +226,20 @@ public class TraktApi
         var responses = new List<TraktScrobbleResponse>();
         foreach (var traktScrobbleEpisode in episodeDatas)
         {
-            var response = await PostToTrakt<TraktScrobbleResponse>(url, traktScrobbleEpisode, traktUser, CancellationToken.None).ConfigureAwait(false);
+            TraktScrobbleResponse response;
+            try
+            {
+                response = await PostToTrakt<TraktScrobbleResponse>(url, traktScrobbleEpisode, traktUser, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == (HttpStatusCode)422 && useProviderIds && HasAnyProviderTvIds(episode))
+            {
+                // Trakt can reject an id-only lookup with 422 (e.g. a stale/incorrect
+                // per-episode id) instead of the 404 the null-response branch below
+                // expects - treat it the same way and fall back to season/episode
+                // number + show ids.
+                response = null;
+            }
+
             // Response can be empty if episode not found
             if (response is not null)
             {
